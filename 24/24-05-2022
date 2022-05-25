@@ -1,0 +1,132 @@
+
+#include <SPI.h>// Add  'SPI' library
+#include <Ethernet.h>// Add 'Ethernet' library
+
+// Digite um endereço MAC e um endereço IP para o seu controlador abaixo.
+// O endereço IP dependerá da sua rede local:
+
+// 'mac' armazena o endereço MAC do seu dispositivo
+byte mac[] = {
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+IPAddress ip(192, 168, 1, 177);//Atribuir endereço IP personalizado a 'ip'
+// Inicializa a biblioteca do servidor Ethernet
+// com o endereço IP e a porta que você deseja usar
+// (porta 80 é padrão para HTTP):
+
+EthernetServer server(80);
+
+float sensor=A0;//configura o valor do sensor no pino analógico A0 cujo tipo de dados é Float
+float gas_value;// o valor está sendo armazenado em gas_value e seu tipo de dados é Float
+int sensor_value=0;// inicializa sensor_value para '0'
+int Flame;// o valor está sendo armazenado no Flame e seu tipo de dados é int
+void setup() {
+  // Open serial comunicações e espere a porta abrir:
+  Serial.begin(9600);// Inicializa a comunicação serial em 9600 baudrate
+  // inicia a conexão Ethernet e o servidor:
+  Ethernet.begin(mac, ip);
+  server.begin();
+  Serial.print("server is at ");// Exibe 'servidor está em'
+  Serial.println(Ethernet.localIP());// Exibe o endereço IP do servidor
+  pinMode(3, INPUT);//configura o pino 3 do arduino como entrada
+  pinMode (2,INPUT);////configura o pino 2 do arduino como entrada
+  pinMode(sensor,INPUT);//configura o pino analógico A0 como entrada
+  }
+
+
+void loop() {
+  sensor_value = digitalRead(2);// armazena o valor PIR em sensor_value
+   
+  Flame = digitalRead(3);//armazena o valor do sensor de chama no Flame
+  
+ gas_value=analogRead(sensor);// armazena o valor do sensor de gás em gas_value
+  
+   //delay(500);
+  EthernetClient client = server.available();//Atribui cliente de entrada para 'cliente'
+  if (client) {// Checa se 'client' is verdadeiro
+    Serial.println("novo cliente");// Imprime 'novo cliente' no Serial MonitorMonitor
+
+    boolean currentLineIsBlank = true;// Set 'currentLineIsBlank' como verdadeiro
+    while (client.connected()) {// Checa se o 'client' esta conectado
+      if (client.available()) {// Checa se o 'client' esta conectado    
+        char c = client.read();// Armazena um caractere dos dados do cliente de entrada
+        // imprime 'c' no Serial Monitor
+        Serial.write(c);
+        // se você chegou ao fim da linha (recebeu uma nova linha
+        // caractere) e a linha está em branco, a solicitação http terminou,
+        // para que você possa enviar uma resposta
+        if (c == '\n' && currentLineIsBlank) {
+
+          // envia um cabeçalho de resposta http padrão
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: text/html");//Define o tipo de conteúdo como texto//html
+          client.println("Connection: close");  // a conexão será fechada após a conclusão da resposta
+          client.println("Refresh: 3");  // atualizar a página automaticamente a cada 5 segundos
+          client.println();
+          client.println("<!DOCTYPE HTML>");
+          client.println("<html>");
+          // saída do valor de cada pino de entrada analógica
+          check(client);
+          client.println("</html>");
+          break;
+        }
+        if (c == '\n') {// Verifica se o caractere de entrada é uma nova linha
+          // você está começando uma nova linha
+          currentLineIsBlank = true;//Define o 'currentLineIsBlank' como verdadeiro
+        } else if (c != '\r') {// Verifica se 'c' não é 'carriage return'
+          // você obteve um caractere na linha atual
+          currentLineIsBlank = false;// Define 'currentLineIsBlank' como falso
+        }
+      }
+    }
+    // dê tempo ao navegador da web para receber os dados
+    delay(1);// fornece atraso '1' milissegundo
+    // feche a conexão:
+    client.stop();//para e desconecta o cliente
+    Serial.println("client disconnected");// Exibir 'cliente desconectado'
+  }
+}
+void check(EthernetClient client ){//função para verificar se o cliente está disponível ou não
+  if (sensor_value==1)//Se Sensor_value é igual a 1 (ele mostrará 1 quando o movimento for detectado)
+   {
+    client.println("Unknown Person Detected </br>");// Printa 'unknown person detected' no Monitor Serial
+   // client.print("");
+    
+    //Serial.println(sensor_value);
+   // Serial.println(digitalRead(2));
+     //delay(100);
+
+  }
+  else if(sensor_value==0)//senão se Sensor_value é igual a 0(ele mostrará 0 quando o movimento não for detectado)
+  {
+    client.println("No detection </br>");// Imprime 'No detection' no Serial Monitor
+    client.print("");
+   // Serial.println(sensor_value);
+    //Serial.println(digitalRead(2));
+    //delay(100);
+
+  }
+  if (Flame)//if Flame is their
+  {
+    client.println("fire detected </br>");// Imprima 'fire detected' no Monitor Serial
+    //delay(100);
+   }
+  else// else no fire  
+  {
+    client.println("No fire </br>");// Imprima 'No Fire' no monitor Serial
+    //delay(100);
+
+  }
+  if(gas_value<=450 )// se gas_value for menor que igual a 450
+  {
+    client.println("No gas leakage");// Imprime 'No gas leakage' no monitor serial
+    //Serial.println(gas_value); 
+    //delay(100);
+
+  }
+    
+  else if(gas_value>500)//if gas_value is greater then 500
+  {
+    client.println("Gas leakage");// Imprime 'Gas leakage' no Monitor Serial
+    //Serial.println(gas_value);
+    //delay(100);
+  }}
